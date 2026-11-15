@@ -1,0 +1,13 @@
+{
+  "name": "otp-forwarder",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "init:project": "eas project:init",
+    "build:apk": "eas build --platform android --profile preview",
+    "build:bundle": "eas build --platform android --profile production"
+  },
+  "dependencies": {
+    "expo": "~51.0.0"
+  }
+}

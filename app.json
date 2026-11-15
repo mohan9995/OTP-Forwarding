@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "OTP Forwarder",
+    "slug": "otp-forwarder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "owner": "mohansaip",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.otpforwarder.app",
+      "permissions": [
+        "android.permission.RECEIVE_SMS",
+        "android.permission.READ_SMS",
+        "android.permission.SEND_SMS",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    }
+  }
+}

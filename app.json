@@ -17,6 +17,11 @@
         "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "android.permission.POST_NOTIFICATIONS"
       ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "419e343d-7e84-4254-92dc-4162b98bd395"
+      }
     }
   }
 }

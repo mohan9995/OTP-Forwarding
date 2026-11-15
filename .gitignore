@@ -19,5 +19,9 @@ captures/
 *.jks
 *.keystore
 
+# Node / Expo
+node_modules/
+.expo/
+
 # macOS
 .DS_Store

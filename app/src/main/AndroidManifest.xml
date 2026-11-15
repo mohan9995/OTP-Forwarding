@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- SMS Capabilities -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!-- Dual-SIM Carrier/Subscription Querying -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+    <!-- Biometric Authentication for App Lock -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- Reliability: Request battery optimization exemption for uninterrupted SMS reception -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Android 13+ (API 33+) Notification status for foreground/log alerts -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        STRICT PRIVACY GUARANTEE:
+        android.permission.INTERNET is deliberately omitted.
+        android.permission.ACCESS_NETWORK_STATE is deliberately omitted.
+        The app is strictly sandboxed offline; network sockets cannot be opened.
+    -->
+
+    <application
+        android:name=".OtpForwarderApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.OtpForwarding">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.OtpForwarding"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            BroadcastReceiver for incoming SMS.
+            android:permission="android.permission.BROADCAST_SMS" is mandatory for security:
+            It ensures ONLY the Android telephony framework (which holds the signature-level
+            BROADCAST_SMS permission) can invoke this receiver, blocking rogue third-party apps
+            from forging SMS broadcasts.
+        -->
+        <receiver
+            android:name=".receiver.SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+    </application>
+
+</manifest>

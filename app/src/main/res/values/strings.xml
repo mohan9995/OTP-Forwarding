@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">OTP Forwarder</string>
+    <string name="app_tagline">Offline &amp; Privacy-First SMS Auto-Forwarder</string>
+</resources>

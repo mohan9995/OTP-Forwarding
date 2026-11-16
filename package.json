@@ -2,12 +2,16 @@
   "name": "otp-forwarder",
   "version": "1.0.0",
   "private": true,
+  "main": "node_modules/expo/AppEntry.js",
   "scripts": {
+    "start": "expo start",
     "init:project": "eas project:init",
     "build:apk": "eas build --platform android --profile preview",
     "build:bundle": "eas build --platform android --profile production"
   },
   "dependencies": {
-    "expo": "~51.0.0"
+    "expo": "~51.0.0",
+    "react": "18.2.0",
+    "react-native": "0.74.5"
   }
 }

@@ -88,7 +88,8 @@ class MainActivity : AppCompatActivity() {
                             modifier = Modifier.fillMaxSize(),
                             bottomBar = {
                                 NavigationBar {
-                                    Screen.items.forEach { screen ->
+                                    val navScreens = listOf(Screen.Home, Screen.Rules, Screen.Logs)
+                                    navScreens.forEach { screen ->
                                         val isSelected = currentScreen == screen.route
                                         NavigationBarItem(
                                             selected = isSelected,

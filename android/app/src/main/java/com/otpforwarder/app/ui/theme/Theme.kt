@@ -69,9 +69,15 @@ fun OtpForwardingTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            try {
+                val window = (context as? Activity)?.window ?: return@SideEffect
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                    window.statusBarColor = colorScheme.background.toArgb()
+                }
+                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            } catch (e: Exception) {
+                // Ignore window styling exceptions across custom OEM devices
+            }
         }
     }
 

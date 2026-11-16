@@ -66,23 +66,27 @@ class MainViewModel(
     }
 
     fun refreshSystemState(context: Context) {
-        val hasReceive = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-        val hasSend = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
-        val hasPhoneState = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        try {
+            val hasReceive = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+            val hasSend = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+            val hasPhoneState = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
 
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        val isIgnoringBattery = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val isIgnoringBattery = powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: false
 
-        val activeSims = if (hasPhoneState) {
-            SmsForwarder.getActiveSubscriptions(context)
-        } else emptyList()
+            val activeSims = if (hasPhoneState) {
+                SmsForwarder.getActiveSubscriptions(context)
+            } else emptyList()
 
-        _uiState.update { current ->
-            current.copy(
-                hasSmsPermissions = hasReceive && hasSend,
-                isIgnoringBatteryOptimizations = isIgnoringBattery,
-                availableSims = activeSims
-            )
+            _uiState.update { current ->
+                current.copy(
+                    hasSmsPermissions = hasReceive && hasSend,
+                    isIgnoringBatteryOptimizations = isIgnoringBattery,
+                    availableSims = activeSims
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainViewModel", "Failed to refresh system state", e)
         }
     }
 

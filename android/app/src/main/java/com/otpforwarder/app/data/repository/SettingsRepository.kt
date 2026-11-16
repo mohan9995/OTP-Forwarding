@@ -34,10 +34,11 @@ data class UserSettings(
     val selectedSubscriptionId: Int = -1,
     val customPrefix: String = DEFAULT_PREFIX,
     val isBiometricLockEnabled: Boolean = false,
-    val maskSensitiveData: Boolean = false
+    val maskSensitiveData: Boolean = false,
+    val carrierSafeMode: Boolean = true
 ) {
     companion object {
-        const val DEFAULT_OTP_REGEX = "(?i)\\b(otp|one[- ]?time[- ]?password|verification[- ]?code|security[- ]?code)\\b"
+        const val DEFAULT_OTP_REGEX = "(?i)\\b(otp|one[- ]?time[- ]?password|verification[- ]?code|secret\\s+otp|security[- ]?code)\\b"
         const val DEFAULT_PREFIX = "[FWD from {sender}]: "
     }
 }
@@ -54,6 +55,7 @@ class SettingsRepository(private val context: Context) {
         val KEY_CUSTOM_PREFIX = stringPreferencesKey("custom_prefix")
         val KEY_BIOMETRIC_LOCK = booleanPreferencesKey("biometric_lock")
         val KEY_MASK_SENSITIVE = booleanPreferencesKey("mask_sensitive")
+        val KEY_CARRIER_SAFE_MODE = booleanPreferencesKey("carrier_safe_mode")
     }
 
     val settingsFlow: Flow<UserSettings> = context.dataStore.data
@@ -83,7 +85,8 @@ class SettingsRepository(private val context: Context) {
             selectedSubscriptionId = preferences[PreferencesKeys.KEY_SUBSCRIPTION_ID] ?: -1,
             customPrefix = preferences[PreferencesKeys.KEY_CUSTOM_PREFIX] ?: UserSettings.DEFAULT_PREFIX,
             isBiometricLockEnabled = preferences[PreferencesKeys.KEY_BIOMETRIC_LOCK] ?: false,
-            maskSensitiveData = preferences[PreferencesKeys.KEY_MASK_SENSITIVE] ?: false
+            maskSensitiveData = preferences[PreferencesKeys.KEY_MASK_SENSITIVE] ?: false,
+            carrierSafeMode = preferences[PreferencesKeys.KEY_CARRIER_SAFE_MODE] ?: true
         )
     }
 
@@ -152,6 +155,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setMaskSensitiveData(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.KEY_MASK_SENSITIVE] = enabled
+        }
+    }
+
+    suspend fun setCarrierSafeMode(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.KEY_CARRIER_SAFE_MODE] = enabled
         }
     }
 }

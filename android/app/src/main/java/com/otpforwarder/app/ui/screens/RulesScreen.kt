@@ -392,12 +392,13 @@ fun RulesScreen(
                 // Live Preview
                 val samplePreview = FilterEngine.formatForwardedMessage(
                     prefixTemplate = prefixInput,
-                    sender = "AMAZON",
-                    originalMessage = "Your security code is 782194."
+                    sender = "AD-ICICIO-T",
+                    originalMessage = "232066 is One-Time Password for INR 304.00 transaction towards AMAZON using ICICI Bank Credit Card XX3001.",
+                    carrierSafeMode = state.settings.carrierSafeMode
                 )
 
                 Text(
-                    text = "Preview: \"$samplePreview\"",
+                    text = "Live Preview: \"$samplePreview\"",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
@@ -423,9 +424,35 @@ fun RulesScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Privacy & Security",
+                        text = "Carrier Delivery & Security",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Carrier-Safe Mode Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Carrier-Safe OTP Mode",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Extracts only the code & merchant (e.g. '[FWD] Code: 232066 for AMAZON'). Prevents Indian telecom operators (Jio, Airtel, Vi) from blocking the SMS via bank anti-phishing filters.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.settings.carrierSafeMode,
+                        onCheckedChange = { viewModel.toggleCarrierSafeMode(it) }
                     )
                 }
 

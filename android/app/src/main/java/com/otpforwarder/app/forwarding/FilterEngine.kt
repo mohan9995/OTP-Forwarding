@@ -120,11 +120,12 @@ object FilterEngine {
             )
         }
 
-        // 6. Format final message with prefix
+        // 6. Format final message with prefix or carrier-safe cleaner
         val formatted = formatForwardedMessage(
             prefixTemplate = settings.customPrefix,
             sender = sender,
-            originalMessage = message
+            originalMessage = message,
+            carrierSafeMode = settings.carrierSafeMode
         )
 
         return FilterDecision.Allow(
@@ -169,20 +170,132 @@ object FilterEngine {
     }
 
     /**
-     * Formats outgoing message using prefix template.
+     * Formats outgoing message using prefix template or carrier-safe cleaner.
      * Supported variables: {sender}, {time}
      */
     fun formatForwardedMessage(
         prefixTemplate: String,
         sender: String,
-        originalMessage: String
+        originalMessage: String,
+        carrierSafeMode: Boolean = true
     ): String {
-        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        val formattedPrefix = prefixTemplate
-            .replace("{sender}", sender, ignoreCase = true)
-            .replace("{time}", timeStr, ignoreCase = true)
+        if (!carrierSafeMode) {
+            val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            val formattedPrefix = prefixTemplate
+                .replace("{sender}", sender, ignoreCase = true)
+                .replace("{time}", timeStr, ignoreCase = true)
 
-        return "$formattedPrefix$originalMessage".trim()
+            return "$formattedPrefix$originalMessage".trim()
+        }
+
+        // Telecom Carrier-Safe Mode:
+        // Extracts the OTP code and merchant/service while omitting bank template triggers
+        val (otp, merchant) = extractOtpAndMerchant(originalMessage)
+        val cleanSender = cleanSenderName(sender)
+
+        val builder = StringBuilder("[FWD]")
+        if (otp != null) {
+            builder.append(" Code: ").append(otp)
+        } else {
+            builder.append(" ").append(originalMessage.take(80))
+        }
+
+        if (!merchant.isNullOrBlank()) {
+            builder.append(" for ").append(merchant)
+        }
+
+        if (cleanSender.isNotBlank()) {
+            builder.append(" (").append(cleanSender).append(")")
+        }
+
+        return builder.toString().trim()
+    }
+
+    /**
+     * Extracts numerical OTP code (4-8 digits) and associated merchant/entity from message.
+     */
+    fun extractOtpAndMerchant(text: String): Pair<String?, String?> {
+        var otp: String? = null
+
+        // Pattern 1: Leading code, e.g. "232066 is One-Time Password", "271110 is SECRET OTP"
+        val p1 = Regex("^\\s*(\\d{4,8})\\b(?:\\s+is\\s+)", RegexOption.IGNORE_CASE).find(text)
+        if (p1 != null) {
+            otp = p1.groupValues[1]
+        }
+
+        // Pattern 2: Prefix-based code, e.g. "G-847291 is your Google..."
+        if (otp == null) {
+            val p2 = Regex("(?:^|\\b)[A-Za-z]?-?(\\d{4,8})\\b\\s+is\\s+", RegexOption.IGNORE_CASE).find(text)
+            if (p2 != null) {
+                otp = p2.groupValues[1]
+            }
+        }
+
+        // Pattern 3: Labeled code, e.g. "OTP is 584920", "code: 123456", "OTP: 918273"
+        if (otp == null) {
+            val p3 = Regex("(?:otp|code|password|passcode|secret)\\D{1,20}\\b(\\d{4,8})\\b", RegexOption.IGNORE_CASE).find(text)
+            if (p3 != null) {
+                otp = p3.groupValues[1]
+            }
+        }
+
+        // Pattern 4: Code followed by purpose, e.g. "584920 is your OTP"
+        if (otp == null) {
+            val p4 = Regex("\\b(\\d{4,8})\\b\\s+(?:is\\s+your|is\\s+the|to\\s+validate|for\\s+login)", RegexOption.IGNORE_CASE).find(text)
+            if (p4 != null) {
+                otp = p4.groupValues[1]
+            }
+        }
+
+        // Pattern 5: Any standalone 4-8 digit number not belonging to a card (XX...) or amount
+        if (otp == null) {
+            val numbers = Regex("\\b(\\d{4,8})\\b").findAll(text).map { it.groupValues[1] }.toList()
+            val filtered = numbers.filter { n ->
+                !text.contains("XX$n", ignoreCase = true) &&
+                !text.contains("INR $n", ignoreCase = true) &&
+                !text.contains("Rs $n", ignoreCase = true) &&
+                !text.contains("Rs. $n", ignoreCase = true)
+            }
+            if (filtered.isNotEmpty()) {
+                otp = filtered.first()
+            }
+        }
+
+        // 2. Extract Merchant / Context
+        var merchant: String? = null
+        val m1 = Regex("(?:towards|at)\\s+([A-Za-z0-9_.\n -]{2,20}?)(?:\\s+(?:using|on|card|\\.|\\bI\\b|for|at|\\d)|$)", RegexOption.IGNORE_CASE).find(text)
+        if (m1 != null) {
+            merchant = m1.groupValues[1].trim()
+        } else {
+            val m2 = Regex("(?:for login to|login to|to login to)\\s+([A-Za-z0-9_.\n -]{2,20}?)(?:\\s+(?:account|NetBanking|\\.)|$)", RegexOption.IGNORE_CASE).find(text)
+            if (m2 != null) {
+                merchant = m2.groupValues[1].trim()
+            } else {
+                val m3 = Regex("(?:for)\\s+([A-Za-z0-9_.\n -]{2,20}?)(?:\\s+(?:Pay|account|order|trip|ride|\\.)|$)", RegexOption.IGNORE_CASE).find(text)
+                if (m3 != null) {
+                    val candidate = m3.groupValues[1].trim()
+                    if (!candidate.contains("txn", ignoreCase = true) && !candidate.contains("inr", ignoreCase = true)) {
+                        merchant = candidate
+                    }
+                }
+            }
+        }
+
+        if (merchant != null) {
+            merchant = merchant.replace(Regex("\\s+[A-Z]$"), "").trim()
+        }
+
+        return Pair(otp, merchant)
+    }
+
+    /**
+     * Cleans telecom routing prefixes from sender: e.g. "AD-ICICIO-T" -> "ICICIO", "JM-AXISBK-T" -> "AXISBK".
+     */
+    fun cleanSenderName(sender: String): String {
+        return sender
+            .replace(Regex("^[A-Za-z]{2}-"), "")
+            .replace(Regex("-[A-Za-z]$"), "")
+            .trim()
     }
 
     /**

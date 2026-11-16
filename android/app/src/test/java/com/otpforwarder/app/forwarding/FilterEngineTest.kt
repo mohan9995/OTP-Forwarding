@@ -15,7 +15,8 @@ class FilterEngineTest {
         otpRegexPattern = UserSettings.DEFAULT_OTP_REGEX,
         filterMode = FilterMode.DISABLED,
         senderList = emptySet(),
-        customPrefix = "[FWD from {sender}]: "
+        customPrefix = "[FWD from {sender}]: ",
+        carrierSafeMode = false
     )
 
     @Test
@@ -180,5 +181,38 @@ class FilterEngineTest {
         assertTrue(FilterEngine.isValidPhoneNumber("9876543210"))
         assertFalse(FilterEngine.isValidPhoneNumber("123"))
         assertFalse(FilterEngine.isValidPhoneNumber("abc+12345"))
+    }
+
+    @Test
+    fun extractOtpAndMerchant_iciciScreenshot() {
+        val msg = "232066 is One-Time Password for INR 304.00 transaction towards AMAZON using ICICI Bank Credit Card XX3001. OTPs are SECRET. DO NOT disclose"
+        val (otp, merchant) = FilterEngine.extractOtpAndMerchant(msg)
+        assertEquals("232066", otp)
+        assertEquals("AMAZON", merchant)
+    }
+
+    @Test
+    fun extractOtpAndMerchant_axisScreenshot() {
+        val msg = "271110 is SECRET OTP for txn of INR 1240.00 on Axis Bank card XX2450 at FLIPKART I on 15-11-26 17:04:13. OTP valid for 5 mins. Please do not share this OTP."
+        val (otp, merchant) = FilterEngine.extractOtpAndMerchant(msg)
+        assertEquals("271110", otp)
+        assertEquals("FLIPKART", merchant)
+    }
+
+    @Test
+    fun formatForwardedMessage_carrierSafeMode_createsCleanMessage() {
+        val rawSender = "AD-ICICIO-T"
+        val msg = "232066 is One-Time Password for INR 304.00 transaction towards AMAZON using ICICI Bank Credit Card XX3001. OTPs are SECRET. DO NOT disclose"
+        val formatted = FilterEngine.formatForwardedMessage(
+            prefixTemplate = "[FWD from {sender}]: ",
+            sender = rawSender,
+            originalMessage = msg,
+            carrierSafeMode = true
+        )
+
+        assertEquals("[FWD] Code: 232066 for AMAZON (ICICIO)", formatted)
+        assertFalse(formatted.contains("Credit Card"))
+        assertFalse(formatted.contains("INR"))
+        assertFalse(formatted.contains("transaction"))
     }
 }

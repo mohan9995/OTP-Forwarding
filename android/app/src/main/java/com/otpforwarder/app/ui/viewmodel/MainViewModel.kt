@@ -199,6 +199,12 @@ class MainViewModel(
         }
     }
 
+    fun toggleCarrierSafeMode(enabled: Boolean) {
+        viewModelScope.launch(exceptionHandler) {
+            settingsRepository.setCarrierSafeMode(enabled)
+        }
+    }
+
     fun unlockApp() {
         _uiState.update { it.copy(isAppLocked = false) }
     }

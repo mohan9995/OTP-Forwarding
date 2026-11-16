@@ -1,17 +1,21 @@
 package com.otpforwarder.app.data.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "otp_settings")
 
@@ -52,7 +56,17 @@ class SettingsRepository(private val context: Context) {
         val KEY_MASK_SENSITIVE = booleanPreferencesKey("mask_sensitive")
     }
 
-    val settingsFlow: Flow<UserSettings> = context.dataStore.data.map { preferences ->
+    val settingsFlow: Flow<UserSettings> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Log.e("SettingsRepository", "IOException reading datastore", exception)
+                emit(emptyPreferences())
+            } else {
+                Log.e("SettingsRepository", "Unexpected error reading datastore", exception)
+                emit(emptyPreferences())
+            }
+        }
+        .map { preferences ->
         val filterModeStr = preferences[PreferencesKeys.KEY_FILTER_MODE] ?: FilterMode.DISABLED.name
         val filterMode = try {
             FilterMode.valueOf(filterModeStr)

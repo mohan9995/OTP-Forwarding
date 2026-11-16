@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,9 +14,11 @@ import com.otpforwarder.app.data.repository.LogRepository
 import com.otpforwarder.app.data.repository.SettingsRepository
 import com.otpforwarder.app.forwarding.FilterEngine
 import com.otpforwarder.app.forwarding.SmsForwarder
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -27,33 +30,40 @@ class MainViewModel(
     private val logRepository: LogRepository
 ) : ViewModel() {
 
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("MainViewModel", "Unhandled coroutine error caught", throwable)
+    }
+
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
 
     private var initialBiometricCheckDone = false
 
     init {
-        // Observe settings changes
-        settingsRepository.settingsFlow.onEach { settings ->
-            _uiState.update { current ->
-                val shouldLock = if (!initialBiometricCheckDone && settings.isBiometricLockEnabled) {
-                    initialBiometricCheckDone = true
-                    true
-                } else current.isAppLocked
+        // Observe settings changes safely
+        settingsRepository.settingsFlow
+            .catch { e -> Log.e("MainViewModel", "Error in settingsFlow", e) }
+            .onEach { settings ->
+                _uiState.update { current ->
+                    val shouldLock = if (!initialBiometricCheckDone && settings.isBiometricLockEnabled) {
+                        initialBiometricCheckDone = true
+                        true
+                    } else current.isAppLocked
 
-                current.copy(
-                    settings = settings,
-                    recipientInput = if (current.recipientInput.isEmpty()) settings.recipientPhoneNumber else current.recipientInput,
-                    isAppLocked = shouldLock
-                )
+                    current.copy(
+                        settings = settings,
+                        recipientInput = if (current.recipientInput.isEmpty()) settings.recipientPhoneNumber else current.recipientInput,
+                        isAppLocked = shouldLock
+                    )
+                }
             }
-        }.launchIn(viewModelScope)
+            .launchIn(viewModelScope + exceptionHandler)
 
-        // Observe audit logs and stats
+        // Observe audit logs and stats safely
         combine(
-            logRepository.allLogs,
-            logRepository.forwardedCount,
-            logRepository.blockedCount
+            logRepository.allLogs.catch { emit(emptyList()) },
+            logRepository.forwardedCount.catch { emit(0) },
+            logRepository.blockedCount.catch { emit(0) }
         ) { logs, forwarded, blocked ->
             _uiState.update { current ->
                 current.copy(
@@ -62,7 +72,9 @@ class MainViewModel(
                     blockedCount = blocked
                 )
             }
-        }.launchIn(viewModelScope)
+        }
+        .catch { e -> Log.e("MainViewModel", "Error in logs flow combine", e) }
+        .launchIn(viewModelScope + exceptionHandler)
     }
 
     fun refreshSystemState(context: Context) {

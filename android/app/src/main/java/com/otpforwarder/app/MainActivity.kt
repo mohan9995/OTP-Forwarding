@@ -7,11 +7,10 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.lifecycle.ViewModelProvider
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -40,23 +39,34 @@ import com.otpforwarder.app.ui.viewmodel.MainViewModelFactory
 
 class MainActivity : AppCompatActivity() {
 
-    private val viewModel: MainViewModel by viewModels {
-        val app = application as OtpForwarderApp
-        MainViewModelFactory(app.settingsRepository, app.logRepository)
-    }
+    private lateinit var viewModel: MainViewModel
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ ->
-        viewModel.refreshSystemState(this)
+        if (::viewModel.isInitialized) {
+            viewModel.refreshSystemState(this)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        try {
+            enableEdgeToEdge()
+        } catch (e: Exception) {
+            Log.e("MainActivity", "enableEdgeToEdge failed", e)
+        }
         super.onCreate(savedInstanceState)
 
-        // Check if there was a previous unhandled crash and alert the user
-        checkPreviousCrash()
+        // Initialize ViewModel safely
+        try {
+            val app = application as OtpForwarderApp
+            val factory = MainViewModelFactory(app.settingsRepository, app.logRepository)
+            viewModel = ViewModelProvider(this, factory)[MainViewModel::class.java]
+        } catch (t: Throwable) {
+            Log.e("MainActivity", "Failed to initialize MainViewModel", t)
+            renderCrashFallback(t)
+            return
+        }
 
         try {
             setContent {
@@ -123,25 +133,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkPreviousCrash() {
-        try {
-            val prefs = getSharedPreferences("crash_logs", Context.MODE_PRIVATE)
-            val lastCrash = prefs.getString("last_crash", null)
-            val crashTime = prefs.getLong("crash_timestamp", 0)
-            if (lastCrash != null && (System.currentTimeMillis() - crashTime < 60000)) {
-                // Clear the recorded crash so it does not repeat
-                prefs.edit().remove("last_crash").apply()
-                AlertDialog.Builder(this)
-                    .setTitle("App Recovered from Error")
-                    .setMessage(lastCrash)
-                    .setPositiveButton("OK", null)
-                    .show()
-            }
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Failed to check previous crash", e)
-        }
-    }
-
     private fun renderCrashFallback(t: Throwable) {
         val scrollView = ScrollView(this).apply {
             setPadding(32, 64, 32, 32)
@@ -157,13 +148,17 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshSystemState(this)
+        if (::viewModel.isInitialized) {
+            viewModel.refreshSystemState(this)
+        }
     }
 
     override fun onStop() {
         super.onStop()
         // Lock app on backgrounding if biometric lock is active
-        viewModel.lockApp()
+        if (::viewModel.isInitialized) {
+            viewModel.lockApp()
+        }
     }
 
     private fun promptUnlock() {

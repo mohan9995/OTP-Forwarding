@@ -2,9 +2,13 @@
 .gradle/
 build/
 app/build/
+android/.gradle/
+android/build/
+android/app/build/
 
 # Local configuration file (sdk.dir, etc)
 local.properties
+android/local.properties
 
 # Log files
 *.log

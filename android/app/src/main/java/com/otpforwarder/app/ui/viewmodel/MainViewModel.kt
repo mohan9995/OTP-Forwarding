@@ -20,8 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -41,40 +40,43 @@ class MainViewModel(
 
     init {
         // Observe settings changes safely
-        settingsRepository.settingsFlow
-            .catch { e -> Log.e("MainViewModel", "Error in settingsFlow", e) }
-            .onEach { settings ->
-                _uiState.update { current ->
-                    val shouldLock = if (!initialBiometricCheckDone && settings.isBiometricLockEnabled) {
-                        initialBiometricCheckDone = true
-                        true
-                    } else current.isAppLocked
+        viewModelScope.launch(exceptionHandler) {
+            settingsRepository.settingsFlow
+                .catch { e -> Log.e("MainViewModel", "Error in settingsFlow", e) }
+                .collect { settings ->
+                    _uiState.update { current ->
+                        val shouldLock = if (!initialBiometricCheckDone && settings.isBiometricLockEnabled) {
+                            initialBiometricCheckDone = true
+                            true
+                        } else current.isAppLocked
 
+                        current.copy(
+                            settings = settings,
+                            recipientInput = if (current.recipientInput.isEmpty()) settings.recipientPhoneNumber else current.recipientInput,
+                            isAppLocked = shouldLock
+                        )
+                    }
+                }
+        }
+
+        // Observe audit logs and stats safely
+        viewModelScope.launch(exceptionHandler) {
+            combine(
+                logRepository.allLogs.catch { emit(emptyList()) },
+                logRepository.forwardedCount.catch { emit(0) },
+                logRepository.blockedCount.catch { emit(0) }
+            ) { logs, forwarded, blocked ->
+                _uiState.update { current ->
                     current.copy(
-                        settings = settings,
-                        recipientInput = if (current.recipientInput.isEmpty()) settings.recipientPhoneNumber else current.recipientInput,
-                        isAppLocked = shouldLock
+                        logs = logs,
+                        forwardedCount = forwarded,
+                        blockedCount = blocked
                     )
                 }
             }
-            .launchIn(viewModelScope + exceptionHandler)
-
-        // Observe audit logs and stats safely
-        combine(
-            logRepository.allLogs.catch { emit(emptyList()) },
-            logRepository.forwardedCount.catch { emit(0) },
-            logRepository.blockedCount.catch { emit(0) }
-        ) { logs, forwarded, blocked ->
-            _uiState.update { current ->
-                current.copy(
-                    logs = logs,
-                    forwardedCount = forwarded,
-                    blockedCount = blocked
-                )
-            }
+            .catch { e -> Log.e("MainViewModel", "Error in logs flow combine", e) }
+            .collect()
         }
-        .catch { e -> Log.e("MainViewModel", "Error in logs flow combine", e) }
-        .launchIn(viewModelScope + exceptionHandler)
     }
 
     fun refreshSystemState(context: Context) {
@@ -103,7 +105,7 @@ class MainViewModel(
     }
 
     fun toggleForwarding(enabled: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setForwardingEnabled(enabled)
         }
     }
@@ -114,7 +116,7 @@ class MainViewModel(
 
     fun saveRecipientPhoneNumber() {
         val number = _uiState.value.recipientInput.trim()
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setRecipientPhoneNumber(number)
         }
     }
@@ -131,7 +133,7 @@ class MainViewModel(
         _uiState.update { it.copy(regexValidationError = error) }
 
         if (error == null) {
-            viewModelScope.launch {
+            viewModelScope.launch(exceptionHandler) {
                 settingsRepository.setOtpRegexPattern(pattern)
             }
         }
@@ -155,44 +157,44 @@ class MainViewModel(
     }
 
     fun setFilterMode(mode: FilterMode) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setFilterMode(mode)
         }
     }
 
     fun addSender(sender: String) {
         if (sender.isBlank()) return
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.addSender(sender)
         }
     }
 
     fun removeSender(sender: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.removeSender(sender)
         }
     }
 
     fun setSelectedSimSubscription(subId: Int) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setSelectedSubscriptionId(subId)
         }
     }
 
     fun updateCustomPrefix(prefix: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setCustomPrefix(prefix)
         }
     }
 
     fun toggleBiometricLock(enabled: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setBiometricLockEnabled(enabled)
         }
     }
 
     fun toggleMaskSensitiveData(enabled: Boolean) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             settingsRepository.setMaskSensitiveData(enabled)
         }
     }
@@ -212,13 +214,13 @@ class MainViewModel(
     }
 
     fun clearLogs() {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             logRepository.clearLogs()
         }
     }
 
     fun deleteLog(id: Long) {
-        viewModelScope.launch {
+        viewModelScope.launch(exceptionHandler) {
             logRepository.deleteLog(id)
         }
     }

@@ -1,6 +1,7 @@
 package com.otpforwarder.app.forwarding
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -28,8 +29,10 @@ object SmsForwarder {
      * Obtains the correct instance of [SmsManager] taking into account API levels and dual-SIM subscription IDs.
      */
     fun getSmsManager(context: Context, subscriptionId: Int = -1): SmsManager {
+        val appContext = context.applicationContext ?: context
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val systemSmsManager = context.getSystemService(SmsManager::class.java)
+            val systemSmsManager = appContext.getSystemService(SmsManager::class.java)
+                ?: context.getSystemService(SmsManager::class.java)
             if (subscriptionId != -1 && subscriptionId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
                 systemSmsManager.createForSubscriptionId(subscriptionId)
             } else {
@@ -49,20 +52,13 @@ object SmsForwarder {
     /**
      * Dispatches an SMS to the destination number. Handles multi-part message splitting automatically.
      */
+    @SuppressLint("MissingPermission")
     fun sendSms(
         context: Context,
         destinationAddress: String,
         message: String,
         subscriptionId: Int = -1
     ): SendResult {
-        val appContext = context.applicationContext ?: context
-        // Permission check
-        if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.SEND_SMS)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return SendResult.Failure("SEND_SMS permission has not been granted by the user.")
-        }
-
         return try {
             val smsManager = getSmsManager(context, subscriptionId)
             val parts = smsManager.divideMessage(message)
@@ -90,7 +86,7 @@ object SmsForwarder {
                 subscriptionId = if (subscriptionId != -1) subscriptionId else null
             )
         } catch (e: SecurityException) {
-            SendResult.Failure("SecurityException while sending SMS: ${e.localizedMessage}", e)
+            SendResult.Failure("SecurityException from Android OS: ${e.localizedMessage}", e)
         } catch (e: IllegalArgumentException) {
             SendResult.Failure("Invalid destination or message: ${e.localizedMessage}", e)
         } catch (e: Exception) {

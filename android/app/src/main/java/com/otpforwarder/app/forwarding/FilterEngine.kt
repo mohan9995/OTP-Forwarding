@@ -125,7 +125,8 @@ object FilterEngine {
             prefixTemplate = settings.customPrefix,
             sender = sender,
             originalMessage = message,
-            carrierSafeMode = settings.carrierSafeMode
+            carrierSafeMode = settings.carrierSafeMode,
+            spaceSeparatedDigits = settings.spaceSeparatedDigits
         )
 
         return FilterDecision.Allow(
@@ -177,7 +178,8 @@ object FilterEngine {
         prefixTemplate: String,
         sender: String,
         originalMessage: String,
-        carrierSafeMode: Boolean = true
+        carrierSafeMode: Boolean = true,
+        spaceSeparatedDigits: Boolean = true
     ): String {
         if (!carrierSafeMode) {
             val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -195,7 +197,8 @@ object FilterEngine {
 
         val builder = StringBuilder("[FWD]")
         if (otp != null) {
-            builder.append(" Code: ").append(otp)
+            val formattedOtp = if (spaceSeparatedDigits) otp.toCharArray().joinToString(" ") else otp
+            builder.append(" Code: ").append(formattedOtp)
         } else {
             builder.append(" ").append(originalMessage.take(80))
         }
@@ -231,9 +234,9 @@ object FilterEngine {
             }
         }
 
-        // Pattern 3: Labeled code, e.g. "OTP is 584920", "code: 123456", "OTP: 918273"
+        // Pattern 3: Labeled code, e.g. "OTP is 584920", "code: 123456", "OTP: 918273", "OTP for Rajmarg Yatra is 9584"
         if (otp == null) {
-            val p3 = Regex("(?:otp|code|password|passcode|secret)\\D{1,20}\\b(\\d{4,8})\\b", RegexOption.IGNORE_CASE).find(text)
+            val p3 = Regex("(?:otp|code|password|passcode|secret)[^\\d\\n]{1,40}\\b(\\d{4,8})\\b", RegexOption.IGNORE_CASE).find(text)
             if (p3 != null) {
                 otp = p3.groupValues[1]
             }
@@ -271,7 +274,7 @@ object FilterEngine {
             if (m2 != null) {
                 merchant = m2.groupValues[1].trim()
             } else {
-                val m3 = Regex("(?:for)\\s+([A-Za-z0-9_.\n -]{2,20}?)(?:\\s+(?:Pay|account|order|trip|ride|\\.)|$)", RegexOption.IGNORE_CASE).find(text)
+                val m3 = Regex("(?:for)\\s+([A-Za-z0-9_.\n -]{2,20}?)(?:\\s+(?:Pay|account|order|trip|ride|is|\\.)|$)", RegexOption.IGNORE_CASE).find(text)
                 if (m3 != null) {
                     val candidate = m3.groupValues[1].trim()
                     if (!candidate.contains("txn", ignoreCase = true) && !candidate.contains("inr", ignoreCase = true)) {

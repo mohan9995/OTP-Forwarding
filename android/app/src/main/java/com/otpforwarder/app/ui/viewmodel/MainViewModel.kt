@@ -205,6 +205,12 @@ class MainViewModel(
         }
     }
 
+    fun toggleSpaceSeparatedDigits(enabled: Boolean) {
+        viewModelScope.launch(exceptionHandler) {
+            settingsRepository.setSpaceSeparatedDigits(enabled)
+        }
+    }
+
     fun sendTestSms(context: Context, onResult: (Boolean, String) -> Unit) {
         val recipient = _uiState.value.settings.recipientPhoneNumber
         if (recipient.isBlank()) {

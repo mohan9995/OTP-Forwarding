@@ -200,6 +200,14 @@ class FilterEngineTest {
     }
 
     @Test
+    fun extractOtpAndMerchant_rajmargYatra() {
+        val msg = "Your OTP for Rajmarg Yatra is 9584 C-DAC"
+        val (otp, merchant) = FilterEngine.extractOtpAndMerchant(msg)
+        assertEquals("9584", otp)
+        assertEquals("Rajmarg Yatra", merchant)
+    }
+
+    @Test
     fun formatForwardedMessage_carrierSafeMode_createsCleanMessage() {
         val rawSender = "AD-ICICIO-T"
         val msg = "232066 is One-Time Password for INR 304.00 transaction towards AMAZON using ICICI Bank Credit Card XX3001. OTPs are SECRET. DO NOT disclose"
@@ -207,10 +215,11 @@ class FilterEngineTest {
             prefixTemplate = "[FWD from {sender}]: ",
             sender = rawSender,
             originalMessage = msg,
-            carrierSafeMode = true
+            carrierSafeMode = true,
+            spaceSeparatedDigits = true
         )
 
-        assertEquals("[FWD] Code: 232066 for AMAZON (ICICIO)", formatted)
+        assertEquals("[FWD] Code: 2 3 2 0 6 6 for AMAZON (ICICIO)", formatted)
         assertFalse(formatted.contains("Credit Card"))
         assertFalse(formatted.contains("INR"))
         assertFalse(formatted.contains("transaction"))

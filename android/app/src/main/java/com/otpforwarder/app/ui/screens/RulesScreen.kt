@@ -394,7 +394,8 @@ fun RulesScreen(
                     prefixTemplate = prefixInput,
                     sender = "AD-ICICIO-T",
                     originalMessage = "232066 is One-Time Password for INR 304.00 transaction towards AMAZON using ICICI Bank Credit Card XX3001.",
-                    carrierSafeMode = state.settings.carrierSafeMode
+                    carrierSafeMode = state.settings.carrierSafeMode,
+                    spaceSeparatedDigits = state.settings.spaceSeparatedDigits
                 )
 
                 Text(
@@ -445,7 +446,7 @@ fun RulesScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Extracts only the code & merchant (e.g. '[FWD] Code: 232066 for AMAZON'). Prevents Indian telecom operators (Jio, Airtel, Vi) from blocking the SMS via bank anti-phishing filters.",
+                            text = "Extracts only the code & merchant (e.g. '[FWD] Code: 2 3 2 0 6 6 for AMAZON'). Prevents Indian telecom operators (Jio, Airtel, Vi) from blocking the SMS via bank anti-phishing filters.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -453,6 +454,32 @@ fun RulesScreen(
                     Switch(
                         checked = state.settings.carrierSafeMode,
                         onCheckedChange = { viewModel.toggleCarrierSafeMode(it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Space-Separated Digits Toggle (Carrier Anti-Scrubber Bypass)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Space-Separated Digits (Bypass Carrier Filter)",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Formats the code with spaces (e.g. '2 3 2 0 6 6') to prevent telecom firewalls from detecting and dropping continuous 4-8 digit numeric codes on personal SIMs.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.settings.spaceSeparatedDigits,
+                        onCheckedChange = { viewModel.toggleSpaceSeparatedDigits(it) }
                     )
                 }
 

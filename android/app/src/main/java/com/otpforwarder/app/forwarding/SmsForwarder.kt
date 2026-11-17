@@ -55,8 +55,9 @@ object SmsForwarder {
         message: String,
         subscriptionId: Int = -1
     ): SendResult {
+        val appContext = context.applicationContext ?: context
         // Permission check
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
+        if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.SEND_SMS)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return SendResult.Failure("SEND_SMS permission has not been granted by the user.")

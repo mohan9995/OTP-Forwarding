@@ -205,6 +205,31 @@ class MainViewModel(
         }
     }
 
+    fun sendTestSms(context: Context, onResult: (Boolean, String) -> Unit) {
+        val recipient = _uiState.value.settings.recipientPhoneNumber
+        if (recipient.isBlank()) {
+            onResult(false, "Please configure and save a recipient phone number first.")
+            return
+        }
+
+        viewModelScope.launch(exceptionHandler) {
+            val result = com.otpforwarder.app.forwarding.SmsForwarder.sendSms(
+                context = context,
+                destinationAddress = recipient,
+                message = "[FWD] Test SMS from OTP Forwarder: Service is active and working!",
+                subscriptionId = _uiState.value.settings.selectedSubscriptionId
+            )
+            when (result) {
+                is com.otpforwarder.app.forwarding.SendResult.Success -> {
+                    onResult(true, "Test SMS sent successfully to $recipient!")
+                }
+                is com.otpforwarder.app.forwarding.SendResult.Failure -> {
+                    onResult(false, result.error)
+                }
+            }
+        }
+    }
+
     fun unlockApp() {
         _uiState.update { it.copy(isAppLocked = false) }
     }

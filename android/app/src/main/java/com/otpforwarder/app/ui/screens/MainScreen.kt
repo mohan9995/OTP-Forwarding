@@ -31,16 +31,22 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -165,7 +171,12 @@ fun MainScreen(
 
                 Switch(
                     checked = state.settings.isForwardingEnabled,
-                    onCheckedChange = { viewModel.toggleForwarding(it) },
+                    onCheckedChange = { enabled ->
+                        if (enabled && !state.hasSmsPermissions) {
+                            onRequestPermissions()
+                        }
+                        viewModel.toggleForwarding(enabled)
+                    },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF2E7D32)
@@ -248,15 +259,55 @@ fun MainScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = {
-                        focusManager.clearFocus()
-                        viewModel.saveRecipientPhoneNumber()
-                    },
-                    enabled = isRecipientValid && state.recipientInput != state.settings.recipientPhoneNumber,
-                    modifier = Modifier.align(Alignment.End)
+                var testStatusMessage by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
+                val context = LocalContext.current
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Save Number")
+                    OutlinedButton(
+                        onClick = {
+                            if (!state.hasSmsPermissions) {
+                                onRequestPermissions()
+                            } else {
+                                viewModel.sendTestSms(context) { success, msg ->
+                                    testStatusMessage = Pair(success, msg)
+                                }
+                            }
+                        },
+                        enabled = state.settings.recipientPhoneNumber.isNotBlank()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Send,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Send Test SMS")
+                    }
+
+                    Button(
+                        onClick = {
+                            focusManager.clearFocus()
+                            viewModel.saveRecipientPhoneNumber()
+                        },
+                        enabled = isRecipientValid && state.recipientInput != state.settings.recipientPhoneNumber
+                    ) {
+                        Text("Save Number")
+                    }
+                }
+
+                if (testStatusMessage != null) {
+                    val (success, msg) = testStatusMessage!!
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (success) Color(0xFF2E7D32) else MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }

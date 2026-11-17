@@ -76,6 +76,9 @@ class MainActivity : AppCompatActivity() {
 
                     LaunchedEffect(Unit) {
                         viewModel.refreshSystemState(this@MainActivity)
+                        if (!uiState.hasSmsPermissions) {
+                            requestSmsPermissions()
+                        }
                     }
 
                     // If app is locked via Biometric lock, render overlay
